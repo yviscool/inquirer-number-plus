@@ -1,0 +1,27 @@
+{
+    "name": "inquirer-number-plus",
+    "version": "0.9.9",
+    "description": "better number prompt",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yviscool/inquirer-number-plus.git"
+    },
+    "keywords": [
+        "inquirer",
+        "number",
+        "command",
+        "prompt",
+        "stdin",
+        "cli",
+        "tty",
+        "menu"
+    ],
+    "author": "Y.V",
+    "dependencies": {
+        "inquirer": "^6.0.0"
+    },
+    "devDependencies": {
+        "fuzzy": "^0.1.3"
+    }
+}
