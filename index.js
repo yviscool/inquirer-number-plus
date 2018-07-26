@@ -3,14 +3,15 @@
  * `number` type prompt
  */
 var chalk = require('chalk');
-var { map, takeUntil } = require('rxjs/operators');
 var Base = require('inquirer/lib/prompts/base');
 var observe = require('inquirer/lib/utils/events');
 var ansiEscapes = require('ansi-escapes');
 
+var { map, filter, share, takeUntil, bufferCount } = require('rxjs/operators');
+
 var _ = require('lodash');
 
-class InputPrompt extends Base {
+class NumberPrompt extends Base {
 
   constructor(questions, rl, answers) {
     super(questions, rl, answers)
@@ -19,13 +20,19 @@ class InputPrompt extends Base {
       min: -Infinity,
       max: Infinity,
     })
+    this.opt.inc = this.handleStringNumber(this.opt.inc, 1)
+    this.opt.min = this.handleStringNumber(this.opt.min, -Infinity)
+    this.opt.max = this.handleStringNumber(this.opt.max, Infinity)
+    this.opt.default = this.handleStringNumber(this.opt.default, 0)
     this.defaultValue = this.opt.default;
     this.opt.default = null;
-    this.value = this.defaultValue || 0;
+    this.value = this.defaultValue;
     this.firstRender = true;
   }
 
+
   _run(cb) {
+
     this.done = cb;
 
     var events = observe(this.rl);
@@ -42,15 +49,30 @@ class InputPrompt extends Base {
     events.normalizedDownKey
       .pipe(takeUntil(validation.success))
       .forEach(this.onDownKey.bind(this));
-
-    // // default exclude 0 
-    events.numberKey
+    // 0123456789
+    events.keypress
+      .pipe(...this.numberKey())
       .pipe(takeUntil(validation.success))
       .forEach(this.onNumberKey.bind(this))
-
+    // bell 
     events.keypress
       .pipe(takeUntil(validation.success))
       .forEach(this.onKeypress.bind(this));
+    // backspace
+    events.keypress
+      .pipe(...this.deleteKey())
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onBackSpaceKey.bind(this));
+    // gg
+    events.keypress
+      .pipe(...this.homeKey())
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onHomeKey.bind(this))
+    // G
+    events.keypress
+      .pipe(...this.endKey())
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onEndKey.bind(this))
 
     // Init
     this.render();
@@ -119,6 +141,38 @@ class InputPrompt extends Base {
     this.render(state.isValid);
   }
 
+  numberKey() {
+    return [
+      filter(e => e.value && '0123456789'.indexOf(e.value) >= 0),
+      map(e => Number(e.value)),
+      share(),
+    ]
+  }
+
+  // gg key events 
+  homeKey() {
+    return [
+      filter(({ key }) => key.name === 'g' || (key.name === 'g' && key.ctrl)),
+      bufferCount(2),
+      share(),
+    ]
+  }
+
+  // G key events 
+  endKey() {
+    return [
+      filter(({ key }) => key.sequence === 'G' || (key.sequence === 'G' && key.ctrl)),
+      share(),
+    ]
+  }
+
+  deleteKey() {
+    return [
+      filter(({ key }) => key.name === 'backspace'),
+      share(),
+    ]
+  }
+
   onUpKey() {
     var line = this.value;
     if (line >= this.opt.max) return this.bell();
@@ -135,11 +189,33 @@ class InputPrompt extends Base {
 
   onNumberKey(value) {
     value = Number(this.value + '' + value);
-    this.value = value;
-    if (value >= this.opt.max) {
+    this.value = this.keepValue(value);
+    this.render();
+  }
+
+  onBackSpaceKey() {
+    var strValue = String(this.value);
+    var changedValue = 
+            strValue.length && strValue.slice(0, -1).startsWith('-') && strValue.length == 2
+            ? 0
+            : Number(strValue.slice(0, -1))
+    this.value = this.keepValue(changedValue);
+    this.render();
+  }
+
+  onHomeKey() {
+    if (this.opt.max === Infinity) {
+      this.value = this.value;
+    } else {
       this.value = this.opt.max;
     }
-    if (value <= this.opt.min) {
+    this.render();
+  }
+
+  onEndKey() {
+    if (this.opt.min === -Infinity) {
+      this.value = 0;
+    } else {
       this.value = this.opt.min;
     }
     this.render();
@@ -147,19 +223,37 @@ class InputPrompt extends Base {
 
   onKeypress({ key }) {
     if (
-      !Number(key.name)
-      && key.name == 'up' 
-      && key.name == 'down'
-      && key.nmae == 'j'
-      && key.nmae == 'k'
+      !  Number(key.name)
+      && key.name !== '0'
+      && key.name !== 'j'
+      && key.name !== 'k'
+      && key.name !== 'g'
+      && key.name !== 'up'
+      && key.name !== 'down'
+      && key.name !== 'backspace'
+      && key.sequence !== 'G'
     ) {
       return this.bell();
     }
   }
 
+  keepValue(value) {
+    if (value >= this.opt.max) {
+      return this.opt.max;
+    }
+    if (value <= this.opt.min) {
+      return this.opt.min;
+    }
+    return value;
+  }
+
   bell() {
     process.stdout.write(ansiEscapes.beep);
   }
+
+  handleStringNumber(value, defaultvalue) {
+    return Number(value) ? Number(value) : defaultvalue;
+  }
 }
 
-module.exports = InputPrompt;
+module.exports = NumberPrompt;

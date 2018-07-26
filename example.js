@@ -9,7 +9,8 @@ inquirer.prompt([{
     default: 12,
     max: 100,
     min: 2,
-        transformer: function(number, answers, flags) {
+    inc: 2,
+    transformer: function(number, answers, flags) {
         if (flags.isFinal) {
           return number+ '!!';
         }

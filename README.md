@@ -22,4 +22,8 @@ inquirer.prompt({
 
 Takes `type`, `name`, `message`, `default`,`max`,`min`,`inc`, properties.
 
-You can type in numbers and use up/down to increase/decrease the value. Only numbers are allowed as input.
+* **noresult**: (Function/String)
+
+You can type in numbers and use `up/down` to increase/decrease the value. Only numbers are allowed as input.
+
+use `gg/G` key to turn the value into `max/min`
